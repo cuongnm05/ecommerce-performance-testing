@@ -1,0 +1,4 @@
+name: E-Commerce Local Environment
+values:
+  - key: base_url
+    value: 'http://localhost:3000'

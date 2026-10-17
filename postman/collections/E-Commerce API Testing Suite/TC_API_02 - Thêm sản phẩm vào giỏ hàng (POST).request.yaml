@@ -1,0 +1,26 @@
+$kind: http-request
+url: "{{base_url}}/api/cart"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productId": 1,
+      "quantity": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status code là 200 OK', function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test('Trả về message xác nhận và cartId hợp lệ', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.message).to.eql('Đã thêm vào giỏ hàng');
+          pm.expect(jsonData.cartId).to.be.a('string');
+      });
+    language: text/javascript
+order: 2000

@@ -1,0 +1,27 @@
+$kind: http-request
+name: TC_API_04 - Thanh toán thất bại do thiếu tên (POST - Boundary Test)
+url: "{{base_url}}/api/checkout"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "cartId": "CART_ACTIVE",
+      "customerName": "A",
+      "address": "Hanoi"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status code là 400 Bad Request', function () {
+          pm.response.to.have.status(400);
+      });
+
+      pm.test('Báo lỗi tên ngắn/rỗng đúng quy định', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.error).to.eql('Tên khách hàng phải từ 2 ký tự trở lên');
+      });
+    language: text/javascript
+order: 4000

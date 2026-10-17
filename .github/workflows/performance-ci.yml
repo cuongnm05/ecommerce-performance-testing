@@ -1,0 +1,65 @@
+name: E-Commerce Automated Testing & Quality Gate Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  quality-gate-testing:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Launch App via Docker Compose
+      run: |
+        docker compose up --build -d
+        for attempt in {1..30}; do
+          if curl --fail --silent http://localhost:3000/api/health; then exit 0; fi
+          sleep 2
+        done
+        echo "Application did not become healthy in time"
+        docker compose logs
+        exit 1
+
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Selenium & Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install selenium webdriver-manager
+
+    - name: Run Black-box Selenium UI Tests
+      run: |
+        python tests/selenium_smoke_test.py
+
+    - name: Install k6 Load Testing Tool
+      run: |
+        sudo gpg -k
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+        sudo apt-get update
+        sudo apt-get install k6
+
+    - name: Execute k6 Performance Test & Generate HTML Report
+      run: |
+        k6 run tests/k6_load_test.js
+
+    # LƯU FILE BÁO CÁO BÀI TẬP LỚN LÊN GITHUB ACTIONS
+    - name: Upload HTML Performance Report Artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: k6-performance-report
+        path: summary.html
+
+    - name: Teardown Environment
+      if: always()
+      run: |
+        docker compose down

@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{base_url}}/api/products"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status code là 200 OK', function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test('Thời gian phản hồi < 300ms', function () {
+          pm.expect(pm.response.responseTime).to.be.below(300);
+      });
+
+      pm.test('Dữ liệu trả về là mảng danh sách sản phẩm không rỗng', function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.be.an('array');
+          pm.expect(jsonData.length).to.be.above(0);
+      });
+    language: text/javascript
+order: 1000
