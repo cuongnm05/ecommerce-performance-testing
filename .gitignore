@@ -1,0 +1,6 @@
+app/node_modules/
+__pycache__/
+tests/__pycache__/
+*.py[cod]
+summary.json
+tmp/docx-render/

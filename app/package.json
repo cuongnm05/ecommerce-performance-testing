@@ -4,7 +4,8 @@
   "description": "TechStore e-commerce demo for software quality and performance testing",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test ../tests/api_contract_test.js"
   },
   "dependencies": {
     "express": "^4.18.2"

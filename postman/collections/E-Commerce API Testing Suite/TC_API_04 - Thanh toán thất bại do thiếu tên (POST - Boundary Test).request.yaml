@@ -8,7 +8,7 @@ body:
   type: text
   content: |-
     {
-      "cartId": "CART_ACTIVE",
+      "cartId": "{{cart_id}}",
       "customerName": "A",
       "address": "Hanoi"
     }
@@ -24,4 +24,4 @@ scripts:
           pm.expect(jsonData.error).to.eql('Tên khách hàng phải từ 2 ký tự trở lên');
       });
     language: text/javascript
-order: 4000
+order: 2500

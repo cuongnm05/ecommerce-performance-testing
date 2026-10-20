@@ -317,9 +317,30 @@
     const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
     const cart = new Map();
     const list = document.getElementById("product-list");
+    const CART_ID_KEY = "techstoreCartId";
+    const CART_ID = sessionStorage.getItem(CART_ID_KEY) || "CART_WEB_" + crypto.randomUUID();
     let products = [];
     let activeFilter = "all";
     let toastTimer;
+    sessionStorage.setItem(CART_ID_KEY, CART_ID);
+
+    async function requestCart(url, options) {
+      const requestOptions = options || {};
+      const headers = Object.assign({}, requestOptions.headers || {}, { "X-Cart-Id": CART_ID });
+      if (requestOptions.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
+      const response = await fetch(url, Object.assign({}, requestOptions, { headers: headers }));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Không thể cập nhật giỏ hàng.");
+      return data;
+    }
+
+    function syncCart(serverCart) {
+      cart.clear();
+      serverCart.items.forEach(function (item) {
+        cart.set(Number(item.productId), Number(item.quantity));
+      });
+      updateCart();
+    }
 
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, function (character) {
@@ -400,15 +421,26 @@
     });
     document.getElementById("product-search").addEventListener("input", renderProducts);
     document.getElementById("product-sort").addEventListener("change", renderProducts);
-    document.getElementById("cart-items").addEventListener("click", function (event) {
+    document.getElementById("cart-items").addEventListener("click", async function (event) {
       const button = event.target.closest("[data-step]");
       if (!button) return;
+      button.disabled = true;
       const id = Number(button.dataset.step);
       const next = (cart.get(id) || 0) + Number(button.dataset.delta);
-      if (next <= 0) cart.delete(id);
-      else if (next <= 10) cart.set(id, next);
-      document.getElementById("checkout-alert").hidden = true;
-      updateCart();
+      try {
+        const serverCart = next <= 0
+          ? await requestCart("/api/cart/" + id, { method: "DELETE" })
+          : await requestCart("/api/cart/" + id, {
+            method: "PUT",
+            body: JSON.stringify({ quantity: next })
+          });
+        syncCart(serverCart);
+        document.getElementById("checkout-alert").hidden = true;
+      } catch (error) {
+        notify(error.message);
+      } finally {
+        button.disabled = false;
+      }
     });
     async function loadProducts() {
       list.setAttribute("aria-busy", "true");
@@ -417,7 +449,7 @@
         if (!response.ok) throw new Error("Không thể tải danh sách sản phẩm.");
         products = await response.json();
         renderProducts();
-        updateCart();
+        syncCart(await requestCart("/api/cart"));
       } catch (error) {
         list.innerHTML = '<div class="empty-state">Chưa thể tải danh sách. Hãy kiểm tra kết nối rồi thử lại.</div>';
         document.getElementById("product-status").textContent = error.message;
@@ -429,19 +461,15 @@
       if (!button) return;
       button.disabled = true;
       try {
-        const response = await fetch("/api/cart", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productId: Number(button.dataset.add), quantity: 1 })
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Không thể thêm sản phẩm.");
         const id = Number(button.dataset.add);
         const current = cart.get(id) || 0;
         if (current >= 10) throw new Error("Mỗi sản phẩm có thể chọn tối đa 10 chiếc.");
-        cart.set(id, current + 1);
+        const serverCart = await requestCart("/api/cart", {
+          method: "POST",
+          body: JSON.stringify({ cartId: CART_ID, productId: id, quantity: 1 })
+        });
+        syncCart(serverCart);
         document.getElementById("checkout-alert").hidden = true;
-        updateCart();
         notify("Đã thêm sản phẩm vào giỏ hàng");
       } catch (error) {
         notify(error.message);
@@ -463,7 +491,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            cartId: "CART_ACTIVE",
+            cartId: CART_ID,
             customerName: document.getElementById("customer-name").value.trim(),
             address: document.getElementById("customer-address").value.trim()
           })

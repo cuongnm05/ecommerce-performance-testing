@@ -4,9 +4,10 @@ import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporte
 
 export const options = {
   stages: [
-    { duration: '5s', target: 20 },
-    { duration: '15s', target: 50 }, // Peak load
-    { duration: '5s', target: 0 },
+    { duration: '10s', target: 20 },
+    { duration: '10s', target: 50 },
+    { duration: '20s', target: 50 }, // Hold peak load
+    { duration: '10s', target: 0 },
   ],
   thresholds: {
     http_req_duration: ['p(95)<500'],
@@ -17,6 +18,7 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 
 export default function () {
+  const cartId = `CART_VU_${__VU}_ITER_${__ITER}`;
   const params = { headers: { 'Content-Type': 'application/json' } };
 
   const products = http.get(BASE_URL + '/api/products');
@@ -28,26 +30,26 @@ export default function () {
 
   const cart = http.post(
     BASE_URL + '/api/cart',
-    JSON.stringify({ productId: 1, quantity: 1 }),
+    JSON.stringify({ cartId, productId: 1, quantity: 1 }),
     params,
   );
   check(cart, {
     'POST Cart status 200': (response) => response.status === 200,
-    'POST Cart returns cart id': (response) => response.json('cartId') === 'CART_ACTIVE',
+    'POST Cart returns cart id': (response) => response.json('cartId') === cartId,
   });
   sleep(0.5);
 
   const checkout = http.post(
     BASE_URL + '/api/checkout',
     JSON.stringify({
-      cartId: 'CART_ACTIVE',
+      cartId,
       customerName: 'Sinh Vien Testing',
       address: 'Dai Hoc Ha Noi',
     }),
     params,
   );
   check(checkout, {
-    'POST Checkout status 200': (response) => response.status === 200,
+    'POST Checkout status 201': (response) => response.status === 201,
     'POST Checkout returns order id': (response) => String(response.json('orderId')).startsWith('ORD_'),
   });
   sleep(0.5);
@@ -138,7 +140,12 @@ export function handleSummary(data) {
     '</style>',
   ].join('');
 
+  const report = htmlReport(data)
+    .replace(/<\/head>/i, reportStyles + '</head>')
+    .replace(/<body[^>]*>/i, (openingTag) => openingTag + buildSummary(data));
+
   return {
-    "summary.html": htmlReport(data),
+    'summary.html': report,
+    'summary.json': JSON.stringify(data, null, 2),
   };
 }

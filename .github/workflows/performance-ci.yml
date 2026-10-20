@@ -9,10 +9,24 @@ on:
 jobs:
   quality-gate-testing:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: npm
+        cache-dependency-path: app/package-lock.json
+
+    - name: Run API contract tests
+      run: |
+        npm --prefix app ci
+        npm --prefix app test
 
     - name: Launch App via Docker Compose
       run: |
@@ -57,7 +71,9 @@ jobs:
       if: always()
       with:
         name: k6-performance-report
-        path: summary.html
+        path: |
+          summary.html
+          summary.json
 
     - name: Teardown Environment
       if: always()

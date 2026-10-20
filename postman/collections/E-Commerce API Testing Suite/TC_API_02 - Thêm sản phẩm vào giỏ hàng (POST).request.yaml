@@ -21,6 +21,7 @@ scripts:
           var jsonData = pm.response.json();
           pm.expect(jsonData.message).to.eql('Đã thêm vào giỏ hàng');
           pm.expect(jsonData.cartId).to.be.a('string');
+          pm.environment.set('cart_id', jsonData.cartId);
       });
     language: text/javascript
 order: 2000

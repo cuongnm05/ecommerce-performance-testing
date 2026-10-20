@@ -7,15 +7,15 @@ body:
   type: text
   content: |-
     {
-      "cartId": "CART_ACTIVE",
+      "cartId": "{{cart_id}}",
       "customerName": "Nguyen Van A",
       "address": "Hanoi, Vietnam"
     }
 scripts:
   - type: afterResponse
     code: |-
-      pm.test('Status code là 200 OK', function () {
-          pm.response.to.have.status(200);
+      pm.test('Status code là 201 Created', function () {
+          pm.response.to.have.status(201);
       });
 
       pm.test('Sinh mã đơn hàng OrderID thành công', function () {
