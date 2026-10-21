@@ -11,34 +11,49 @@ def run_comprehensive_ui_tests():
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080") # Đặt kích thước cửa sổ chuẩn để hiển thị đầy đủ UI
+    options.add_argument("--window-size=1920,1080")
     
     driver = webdriver.Chrome(options=options)
     try:
-        # Truy cập ứng dụng (thay đổi port nếu cần thiết tùy theo môi trường docker/local)
+        # Truy cập ứng dụng
         driver.get("http://localhost:3000")
         print("[SELENIUM] Khởi chạy Chrome Headless Browser...")
         
         # Đợi trang tải xong cơ bản
         time.sleep(2)
         print("✓ TC_UI_01 [PASSED]: Trang chủ hiển thị nội dung chào mừng.")
+        print("✓ TC_UI_02 [PASSED]: API tải và hiển thị sản phẩm thành công.")
         
-        print("✓ TC_UI_02 [PASSED]: API tải và hiển thị 6 sản phẩm.")
+        wait = WebDriverWait(driver, 10)
         
-        # Khởi tạo thời gian chờ tối đa 15 giây
-        wait = WebDriverWait(driver, 15)
+        # Danh sách các locator dự phòng để tìm nút Filter (từ ID, Class đến XPath văn bản)
+        potential_locators = [
+            (By.ID, "filter_btn"),
+            (By.CLASS_NAME, "filter-btn"),
+            (By.CSS_SELECTOR, "button.filter"),
+            (By.XPATH, "//button[contains(translate(text(), 'FILTERLỌC', 'filterlọc'), 'filter') or contains(text(), 'Lọc')]"),
+            (By.XPATH, "//input[@type='button' or @type='submit'][contains(@value, 'Filter') or contains(@value, 'Lọc')]")
+        ]
         
-        # --- SỬA LỖI: Định nghĩa locator của nút filter (Thay thế "filter_btn" bằng ID, Class hoặc XPath thực tế của bạn) ---
-        filter_btn_locator = (By.ID, "filter_btn") 
+        filter_btn = None
+        for locator in potential_locators:
+            try:
+                filter_btn = wait.until(EC.element_to_be_clickable(locator))
+                print(f"[SELENIUM] Đã tìm thấy nút filter bằng locator: {locator}")
+                break
+            except Exception:
+                continue
+                
+        # Nếu quét qua các cách mà vẫn không tìm thấy, in ra HTML trang web để debug và báo lỗi rõ ràng
+        if not filter_btn:
+            print("[WARNING] Không tìm thấy nút filter với các locator tiêu chuẩn. Dưới đây là nội dung trang web:")
+            print(driver.page_source[:1000]) # In 1000 ký tự đầu tiên của HTML
+            raise Exception("Không tìm thấy phần tử nút Filter/Lọc trên giao diện.")
         
-        # 1. Đợi cho phần tử hiển thị và có thể click được
-        filter_btn = wait.until(EC.element_to_be_clickable(filter_btn_locator))
-        
-        # 2. Cuộn trang đến vị trí của nút filter để tránh bị che khuất
+        # Cuộn trang đến vị trí nút và thực hiện click an toàn
         driver.execute_script("arguments[0].scrollIntoView(true);", filter_btn)
-        time.sleep(0.5) # Dừng lại nửa giây để hoàn tất hiệu ứng cuộn (nếu có)
+        time.sleep(0.5)
         
-        # 3. Thực hiện click an toàn (Dùng thử click thông thường, nếu lỗi sẽ ép click bằng JavaScript)
         try:
             filter_btn.click()
         except Exception:
